@@ -1,6 +1,14 @@
 <?php
 include '../database/db.php';
 include '../database/partner_request.php';
+include '../database/login_request.php';
+///////////////////// vérif des rôles ///////////////////
+session_start();
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
+    header('Location: ../login/login.php');
+    exit;
+}
+///////////////////// FIN vérif des rôles ///////////////////
 ?>
 <!DOCTYPE html>
 <html lang="fr">

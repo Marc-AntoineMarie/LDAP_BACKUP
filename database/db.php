@@ -12,9 +12,9 @@ try {
         PDO::ATTR_EMULATE_PREPARES   => false,
     ];
     $pdo = new PDO('mysql:host='.$host.'; dbname='.$db,$user,$pass);
-    echo "db.php-> tout fonctionne batard | ";
+    //echo "db.php-> tout fonctionne batard | ";
 } catch (PDOException $e) {
-    echo "Erreur de connexion : " . $e->getMessage();
+    echo "La BDD est déco !!! : " . $e->getMessage();
     exit;
 }
 

@@ -44,16 +44,11 @@ class AnnuaireManager {
     }
 
     function getClientName($clientId) {
-        try{        
-            $sql = "SELECT Nom FROM Clients WHERE idclients = :clientId";
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->bindParam(":clientId", $clientId, PDO::PARAM_INT);
-            $stmt->execute();
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            die("Erreur SQL dans getClientName : " . $e->getMessage());
-        }
-
+        $sql = "SELECT Nom FROM clients WHERE idclients = :clientId";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->bindParam(":clientId", $clientId, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
 
@@ -101,50 +96,6 @@ class AnnuaireManager {
 
 if (!isset($pdo) || $pdo === null) {
     die("Erreur : PDO non initialisé. Annuaire_request");
-}
-
-class UserAnnuaireManager {
-    private $pdo;
-
-    function __construct($pdo) {
-        $this->pdo = $pdo;
-    }
-
-    // Récupérer les utilisateurs d'un annuaire
-    function getUsersByAnnuaire($annuaireId) {
-        $sql = "SELECT * FROM User_annuaire WHERE annuaire_id = :annuaireId";
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->bindParam(":annuaireId", $annuaireId, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    // Ajouter un utilisateur à un annuaire
-    function addUserToAnnuaire($annuaireId, $prenom, $nom, $email, $societe, $adresse, $ville, $telephone, $commentaire) {
-        $sql = "INSERT INTO User_annuaire (annuaire_id, Prenom, Nom, Email, Societe, Adresse, Ville, Telephone, Commentaire) 
-                VALUES (:annuaireId, :prenom, :nom, :email, :societe, :adresse, :ville, :telephone, :commentaire)";
-        $stmt = $this->pdo->prepare($sql);
-
-        $stmt->bindParam(":annuaireId", $annuaireId, PDO::PARAM_INT);
-        $stmt->bindParam(":prenom", $prenom, PDO::PARAM_STR);
-        $stmt->bindParam(":nom", $nom, PDO::PARAM_STR);
-        $stmt->bindParam(":email", $email, PDO::PARAM_STR);
-        $stmt->bindParam(":societe", $societe, PDO::PARAM_STR);
-        $stmt->bindParam(":adresse", $adresse, PDO::PARAM_STR);
-        $stmt->bindParam(":ville", $ville, PDO::PARAM_STR);
-        $stmt->bindParam(":telephone", $telephone, PDO::PARAM_STR);
-        $stmt->bindParam(":commentaire", $commentaire, PDO::PARAM_STR);
-
-        return $stmt->execute();
-    }
-
-    // Supprimer un utilisateur de l'annuaire
-    function deleteUserFromAnnuaire($userId) {
-        $sql = "DELETE FROM User_annuaire WHERE idUserAnnuaire = :userId";
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
-        return $stmt->execute();
-    }
 }
 
 $annuaireManager = new AnnuaireManager($pdo);
