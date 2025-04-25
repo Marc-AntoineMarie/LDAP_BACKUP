@@ -1,4 +1,24 @@
 <?php
+/**
+ * Page de connexion de l'application
+ * 
+ * Cette page gère :
+ * - L'authentification des utilisateurs
+ * - La redirection selon le rôle (Admin/Partenaire/Client)
+ * - La sécurité des sessions
+ * 
+ * Processus d'authentification :
+ * 1. Vérification des identifiants
+ * 2. Création de la session
+ * 3. Redirection vers la page appropriée
+ * 4. Gestion des erreurs de connexion
+ */
+
+// Inclusion des dépendances nécessaires
+// Ces fichiers fournissent :
+// - La connexion à la base de données
+// - Les fonctions d'authentification
+// - Les utilitaires de sécurité
 require_once '../database/login_request.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -15,7 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connexion</title>
+    <title>Telora - Connexion</title>
+    <link rel="icon" type="image/png" href="../admin/logo/Logo-ldap.png">
+    <link rel="shortcut icon" type="image/png" href="../admin/logo/Logo-ldap.png">
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>

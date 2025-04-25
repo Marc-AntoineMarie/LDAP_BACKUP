@@ -1,164 +1,390 @@
-document.addEventListener("DOMContentLoaded", function() {
-    /////////////////////////////
-    // 📌 Gestion des Contacts //
-    /////////////////////////////
+// Fonctions pour la gestion des contacts
 
-    const addClientBtn = document.getElementById('add-client');
-    const clientList = document.getElementById('client-list');
-    const selectAllCheckbox = document.getElementById('select-all');
+document.addEventListener('DOMContentLoaded', function() {
+    // Obtenir l'ID du client depuis l'URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const clientId = urlParams.get('idclients');
 
-    // 🟢 Ajouter un client (local & backend)
-    document.addEventListener("DOMContentLoaded", function() {
-        const submitContactBtn = document.getElementById('submit-contact');
-    
-        if (submitContactBtn) {
-            submitContactBtn.addEventListener('click', function () {
-                const firstname = document.getElementById('firstname').value;
-                const lastname = document.getElementById('lastname').value;
-                const email = document.getElementById('email').value;
-                const extension = document.getElementById('extension').value;
-                const code = document.getElementById('code').value;
-    
-                if (firstname && lastname && email && extension && code) {
-                    fetch('annuaire.php?idclients=' + (new URLSearchParams(window.location.search)).get('idclients'), {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            action: 'add_contact',
-                            firstname: firstname,
-                            lastname: lastname,
-                            email: email,
-                            extension: extension,
-                            code: code,
-                        }),
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                alert('Contact ajouté avec succès');
-                                location.reload();
-                            } else {
-                                alert('Erreur : ' + data.message);
-                            }
-                        })
-                        .catch(error => console.error('Erreur :', error));
-                } else {
-                    alert('Veuillez remplir tous les champs.');
-                }
-            });
-        }
-    });
+    // Vérifier si clientId existe
+    if (!clientId) {
+        console.error('ID client manquant');
+        return;
+    }
 
-    /////////////////////////// AJOUT CONTACT //////////////////////////////
-    document.getElementById('submit-contact').addEventListener('click', function () {
-        const annuaireId = document.getElementById('annuaire-id').value; // ID de l'annuaire
-        const prenom = document.getElementById('firstname').value;
-        const nom = document.getElementById('lastname').value;
-        const email = document.getElementById('email').value;
-        const societe = document.getElementById('societe').value;
-        const adresse = document.getElementById('adresse').value;
-        const ville = document.getElementById('ville').value;
-        const telephone = document.getElementById('telephone').value;
-        const commentaire = document.getElementById('commentaire').value;
-    
-        fetch('annuaire.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: 'add_user_annuaire',
-                annuaireId: annuaireId,
-                prenom: prenom,
-                nom: nom,
-                email: email,
-                societe: societe,
-                adresse: adresse,
-                ville: ville,
-                telephone: telephone,
-                commentaire: commentaire,
-            }),
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Contact ajouté avec succès');
-                location.reload(); // Recharge pour actualiser la liste
-            } else {
-                alert('Erreur : ' + data.message);
+    // Recherche globale AJAX sur tous les contacts
+    const searchInput = document.getElementById('contactSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            const value = this.value.trim();
+            if (!value) {
+                // Si champ vide, recharge la page pour pagination normale
+                location.href = location.pathname + location.search;
+                return;
             }
-        })
-        .catch(error => console.error('Erreur :', error));
-    });
-    
-
-    // 🟢 Suppression d'un contact existant
-    document.querySelectorAll('.btn-delete').forEach(button => {
-        button.addEventListener('click', function() {
-            const row = button.closest('tr');
-            const entryId = button.getAttribute('data-id');
-            
-            fetch('annuaire.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'delete_contact',
-                    id: entryId,
-                }),
-            })
-                .then(response => response.json())
+            fetch('search_contacts.php?idclients=' + encodeURIComponent(clientId) + '&q=' + encodeURIComponent(value))
+                .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        row.remove();
-                        alert('Contact supprimé avec succès');
-                    } else {
-                        alert('Erreur : ' + data.message);
+                        const contactGrid = document.querySelector('.contact-grid');
+                        if (contactGrid) {
+                            contactGrid.innerHTML = '';
+                            if (data.contacts.length === 0) {
+                                contactGrid.innerHTML = '<div style="text-align:center;color:#888;width:100%">Aucun résultat</div>';
+                            } else {
+                                data.contacts.forEach(contact => {
+                                    let societeOrNom = contact.Societe ? contact.Societe : contact.Nom;
+                                    let card = document.createElement('div');
+                                    card.className = 'contact-card';
+                                    card.innerHTML = `
+                                        <div class="card-logo">
+                                            <div class="logo-placeholder">${(contact.Nom||'').substring(0,2).toUpperCase()}</div>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="client-name">${societeOrNom}</div>
+                                            <div class="client-details">
+                                                ${contact.Telephone ? `<div class='detail-item'><i class='fas fa-phone'></i> <span>${contact.Telephone}</span></div>` : ''}
+                                                ${contact.Email ? `<div class='detail-item'><i class='fas fa-envelope'></i> <span>${contact.Email}</span></div>` : ''}
+                                            </div>
+                                            <div class="card-actions">
+                                                <button class="btn-icon" onclick="openEditContactModal(${contact.iduser_annuaire}, ${clientId})"><i class="fas fa-edit"></i></button>
+                                                <button class="btn-icon btn-delete" onclick="if(confirm('Êtes-vous sûr de vouloir supprimer ce contact ?')) window.location.href='?action=delete&id=${contact.iduser_annuaire}&idclients=${clientId}'"><i class="fas fa-trash-alt"></i></button>
+                                            </div>
+                                        </div>
+                                    `;
+                                    contactGrid.appendChild(card);
+                                });
+                            }
+                        }
                     }
-                })
-                .catch(error => console.error('Erreur :', error));
+                });
         });
-    });
+    } else {
+        console.warn('Champ de recherche de contact (contactSearchInput) introuvable dans le DOM');
+    }
 
-    // 🟢 Sélectionner/Désélectionner tous les contacts
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            const checkboxes = document.querySelectorAll('.client-checkbox');
-            checkboxes.forEach(checkbox => {
-                checkbox.checked = selectAllCheckbox.checked;
-                checkbox.closest('tr').style.backgroundColor = checkbox.checked ? '#e9f5ff' : '';
+    // Gestionnaire du formulaire
+    const contactForm = document.getElementById('contactForm');
+    if (contactForm) {
+        contactForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(contactForm);
+            const contactId = document.getElementById('contactId')?.value;
+            const url = contactId ? 'update_contact.php' : 'add_contact.php';
+            fetch(url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Une erreur est survenue');
+                }
+            })
+            .catch(error => {
+                console.error('Erreur lors de l\'envoi du formulaire :', error);
+                alert('Une erreur est survenue lors de l\'envoi du formulaire');
+            });
+        });
+    } else {
+        console.warn('Formulaire de contact (contactForm) introuvable dans le DOM');
+    }
+
+    // Gestionnaire du formulaire d'ajout de contact
+    const addContactForm = document.getElementById('addContactForm');
+    if (addContactForm) {
+        addContactForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(addContactForm);
+            fetch('annuaire.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('addContactModal').style.display = 'none';
+                    location.reload();
+                } else {
+                    alert(data.error || 'Erreur lors de l\'ajout du contact');
+                }
+            })
+            .catch(error => {
+                console.error('Erreur lors de l\'ajout du contact :', error);
+                alert('Une erreur est survenue lors de l\'ajout du contact');
             });
         });
     }
 
-    // 🟢 Gestion de chaque case à cocher
-    document.querySelectorAll('.client-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const row = checkbox.closest('tr');
-            row.style.backgroundColor = checkbox.checked ? '#e9f5ff' : '';
-        });
+    // Gestion de la suppression des contacts
+    document.querySelectorAll('.btn-delete').forEach(button => {
+        if (button) {
+            button.addEventListener('click', function() {
+                const contactId = this.dataset.id;
+                if (confirm('Êtes-vous sûr de vouloir supprimer ce contact ?')) {
+                    fetch('delete_contact.php?id=' + contactId)
+                        .then(() => window.location.reload());
+                }
+            });
+        } else {
+            console.warn('Bouton de suppression de contact (.btn-delete) introuvable dans le DOM');
+        }
     });
 
-    /////////////////////////////
-    // 📌 Gestion Annuaire ID //
-    /////////////////////////////
-
-    const btnGererAnnuaire = document.getElementById('gerer-annuaire');
-    if (btnGererAnnuaire) {
-        btnGererAnnuaire.addEventListener('click', function(event) {
-            event.preventDefault(); // Empêche le rafraîchissement de la page
-
-            const clientId = this.getAttribute('data-id');
-            if (clientId) {
-                window.location.href = `../annuaire/annuaire.php?idclients=${clientId}`;
-            } else {
-                console.error("ID client manquant sur le bouton Gérer l'annuaire.");
-            }
+    // Gestion de la sélection multiple
+    const selectAllCheckbox = document.getElementById('selectAll');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            document.querySelectorAll('.contact-select').forEach(checkbox => {
+                if (checkbox) {
+                    checkbox.checked = this.checked;
+                } else {
+                    console.warn('Case à cocher de sélection de contact (.contact-select) introuvable dans le DOM');
+                }
+            });
         });
     } else {
-        console.warn("Le bouton 'Gérer l'annuaire' n'a pas été trouvé dans le DOM.");
+        console.warn('Case à cocher de sélection de tous les contacts (selectAll) introuvable dans le DOM');
+    }
+
+    // Gestion de l'importation CSV (VPS style)
+    const importBtn = document.getElementById('import-csv-btn');
+    if (importBtn) {
+        importBtn.addEventListener('click', function() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.csv';
+            input.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const formData = new FormData();
+                formData.append('csv_file', file); // IMPORTANT : champ comme sur le VPS !
+                formData.append('idclients', clientId);
+                fetch('import_csv.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        window.location.reload();
+                    } else {
+                        alert('Erreur : ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    alert('Une erreur est survenue lors de l\'importation');
+                });
+            });
+            input.click();
+        });
+    } else {
+        console.warn('Bouton import-csv-btn introuvable dans le DOM');
+    }
+
+    // Gestion de l'exportation CSV (VPS style)
+    const exportBtn = document.getElementById('export-csv-btn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function() {
+            window.location.href = 'handle_csv.php?action=export_csv&idclients=' + clientId;
+        });
+    } else {
+        console.warn('Bouton export-csv-btn introuvable dans le DOM');
+    }
+
+    // Fonctions modales
+    function openAddContactModal() {
+        const modal = document.getElementById('contactModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const contactForm = document.getElementById('contactForm');
+        
+        if (modal && modalTitle && contactForm) {
+            modalTitle.textContent = 'Ajouter un contact';
+            contactForm.reset();
+            document.getElementById('contactId').value = '';
+            
+            modal.style.display = 'block';
+        } else {
+            console.warn('Modal de contact (contactModal) ou formulaire de contact (contactForm) introuvable dans le DOM');
+        }
+    }
+
+    function editContact(contactId) {
+        const modal = document.getElementById('contactModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const contactForm = document.getElementById('contactForm');
+        
+        if (modal && modalTitle && contactForm) {
+            modalTitle.textContent = 'Modifier le contact';
+            
+            // Récupérer les données du contact
+            fetch(`get_contact.php?id=${contactId}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('contactId').value = data.id;
+                    document.getElementById('nom').value = data.nom;
+                    document.getElementById('prenom').value = data.prenom;
+                    document.getElementById('email').value = data.email;
+                    document.getElementById('telephone').value = data.telephone;
+                    document.getElementById('societe').value = data.societe;
+                    modal.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Erreur lors de la récupération des données du contact');
+                });
+        } else {
+            console.warn('Modal de contact (contactModal) ou formulaire de contact (contactForm) introuvable dans le DOM');
+        }
+    }
+
+    function deleteContact(contactId) {
+        if (confirm('Êtes-vous sûr de vouloir supprimer ce contact ?')) {
+            fetch('delete_contact.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ id: contactId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Une erreur est survenue lors de la suppression');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Une erreur est survenue lors de la suppression');
+            });
+        }
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('contactModal');
+        if (modal) {
+            modal.style.display = 'none';
+        } else {
+            console.warn('Modal de contact (contactModal) introuvable dans le DOM');
+        }
+    }
+
+    // Fermer la modal si on clique en dehors
+    window.onclick = function(event) {
+        const modal = document.getElementById('contactModal');
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    // Fonction d'export CSV
+    document.getElementById('export-btn').addEventListener('click', function() {
+        const contacts = [];
+        const cards = document.querySelectorAll('.contact-card');
+        
+        if (cards) {
+            cards.forEach(card => {
+                const name = card.querySelector('.client-name').textContent.trim();
+                const nameParts = name.split(' ');
+                const contact = {
+                    nom: nameParts[0] || '',
+                    prenom: nameParts.slice(1).join(' ') || '',
+                    telephone: card.querySelector('.fa-phone') ? 
+                        card.querySelector('.fa-phone').nextElementSibling.textContent.trim() : '',
+                    email: card.querySelector('.fa-envelope') ? 
+                        card.querySelector('.fa-envelope').nextElementSibling.textContent.trim() : '',
+                    societe: card.querySelector('.fa-building') ? 
+                        card.querySelector('.fa-building').nextElementSibling.textContent.trim() : ''
+                };
+                contacts.push(contact);
+            });
+            
+            let csv = 'Nom,Prénom,Téléphone,Email,Société\n';
+            contacts.forEach(contact => {
+                csv += `"${contact.nom}","${contact.prenom}","${contact.telephone}","${contact.email}","${contact.societe}"\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'contacts.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } else {
+            console.warn('Cartes de contact (.contact-card) introuvables dans le DOM');
+        }
+    });
+
+    // Gestion du modal
+    const modal = document.getElementById('addContactModal');
+    const closeBtn = modal.querySelector('.close');
+    const cancelBtn = modal.querySelector('.btn-outline');
+
+    function closeModal() {
+        if (modal) {
+            modal.style.display = 'none';
+        } else {
+            console.warn('Modal d\'ajout de contact (addContactModal) introuvable dans le DOM');
+        }
+    }
+
+    if (closeBtn) {
+        closeBtn.onclick = closeModal;
+    }
+
+    if (cancelBtn) {
+        cancelBtn.onclick = closeModal;
+    }
+
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            closeModal();
+        }
+    }
+
+    // Validation du formulaire
+    const form = modal.querySelector('form');
+    if (form) {
+        form.onsubmit = function(e) {
+            const telephone = form.querySelector('[name="Telephone"]').value;
+            const nom = form.querySelector('[name="Nom"]').value;
+
+            if (!telephone || !nom) {
+                e.preventDefault();
+                alert('Le nom et le numéro de téléphone sont obligatoires');
+                return false;
+            }
+
+            // Validation basique du format de téléphone
+            const phoneRegex = /^[0-9+\-\s()]{10,}$/;
+            if (!phoneRegex.test(telephone.replace(/\s/g, ''))) {
+                e.preventDefault();
+                alert('Le format du numéro de téléphone est invalide');
+                return false;
+            }
+
+            // Validation de l'email si présent
+            const email = form.querySelector('[name="Email"]').value;
+            if (email) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    e.preventDefault();
+                    alert('Le format de l\'email est invalide');
+                    return false;
+                }
+            }
+
+            return true;
+        };
+    } else {
+        console.warn('Formulaire d\'ajout de contact introuvable dans le DOM');
     }
 });

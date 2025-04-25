@@ -7,11 +7,12 @@ class ShowUtilisateursForm {
     private $UtilisateursRecoveryByClientSQLRequest = "SELECT * FROM Utilisateurs WHERE clients_idclients = [0] [1]";
     private $UtilisateursRecoveryByMACSQLRequest = "SELECT * FROM Utilisateurs WHERE AdresseMAC = '[0]' ORDER BY idutilisateurs";
     private $UtilisateursRecoveryByIdSQLRequest = "SELECT * FROM Utilisateurs WHERE idutilisateurs = [0] ";
+    private $UtilisateursRecoveryBySerialNumberSQLRequest = "SELECT * FROM Utilisateurs WHERE SerialNumber = '[0]' ORDER BY idutilisateurs";
     private $UtilisateursVerificationMACSQLRequest = "SELECT * FROM Utilisateurs WHERE AdresseMAC = '[0]' AND idutilisateurs != [1] ";
     private $UtilisateursUpdateSQLRequest = "UPDATE Utilisateurs SET Nom = \"[1]\", Extension = \"[2]\", TypePoste = \"[3]\",
-    	AdresseMAC = \"[4]\",	SIPServeur = \"[5]\", SIPLogin = \"[6]\", SIPPassword = \"[7]\" WHERE idutilisateurs = [0]";
-    private $UtilisateursInsertSQLRequest = "INSERT INTO Utilisateurs (Nom, Extension, TypePoste, AdresseMAC, SIPServeur, SIPLogin, SIPPassword, clients_idclients) 
-    	VALUES (\"[0]\",\"[1]\",\"[2]\",\"[3]\",\"[4]\",\"[5]\",\"[6]\",[7])";
+    	AdresseMAC = \"[4]\",	SIPServeur = \"[5]\", SIPLogin = \"[6]\", SIPPassword = \"[7]\", SerialNumber = \"[8]\" WHERE idutilisateurs = [0]";
+    private $UtilisateursInsertSQLRequest = "INSERT INTO Utilisateurs (Nom, Extension, TypePoste, AdresseMAC, SerialNumber, SIPServeur, SIPLogin, SIPPassword, clients_idclients) 
+    	VALUES (\"[0]\",\"[1]\",\"[2]\",\"[3]\",\"[4]\",\"[5]\",\"[6]\",\"[7]\",[8])";
     private $UtilisateursBLFRecoveryByUtilisateurSQLRequest = "SELECT * FROM UtilisateursBLF WHERE utilisateurs_idutilisateurs = [0] ORDER BY Position";
     private $UtilisateursBLFRecoveryByIdSQLRequest = "SELECT * FROM UtilisateursBLF WHERE idblf = [0] ";
     private $UtilisateursBLFRecoveryByPositionSQLRequest = "SELECT * FROM UtilisateursBLF WHERE utilisateurs_idutilisateurs = [0] AND Position = [1] ";
@@ -21,7 +22,6 @@ class ShowUtilisateursForm {
                         VALUES (\"[2]\", \"[3]\", \"[4]\", [1], [0])";
     private $UtilisateursBLFDeleteAllSQLRequest = "DELETE FROM UtilisateursBLF WHERE utilisateurs_idutilisateurs = [0]";
 		private $UtilisateursDeleteSQLRequest = "DELETE FROM Utilisateurs WHERE idutilisateurs = [0]";
-
 
     //Constructeur pour initialiser la connexion PDO
     function __construct($pdo) {
@@ -46,6 +46,22 @@ class ShowUtilisateursForm {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
+    // Récupération des utilisateurs avec même MAC (pour les DECT)
+    function UtilisateursRecoveryByMAC($adressemac) {
+				$sqlrequest = str_replace("[0]", $adressemac,$this->UtilisateursRecoveryByMACSQLRequest);
+        $stmt = $this->pdo->prepare($sqlrequest);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Récupération des utilisateurs avec même numéro de série
+    function UtilisateursRecoveryBySerialNumberSQLRequest($serialnumber) {
+      $sqlrequest = str_replace("[0]", $serialnumber,$this->UtilisateursRecoveryBySerialNumberSQLRequest);
+      $stmt = $this->pdo->prepare($sqlrequest);
+      $stmt->execute();
+      return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
     // Vérification que l'adresse MAC n'est pas déjà utilisée
     function UtilisateursVerificationMAC($adressemac, $idutilisateur) {
 				$sqlrequest = str_replace("[0]", $adressemac,$this->UtilisateursVerificationMACSQLRequest);
@@ -56,7 +72,7 @@ class ShowUtilisateursForm {
     }
 
     // Enregistrement des données d'un utilisateur
-    function UtilisateursUpdate($idutilisateur,$nom,$extension,$typeposte,$mac,$sipsrv,$siplog,$sippass) {
+    function UtilisateursUpdate($idutilisateur,$nom,$extension,$typeposte,$mac,$sipsrv,$siplog,$sippass,$serial) {
 				$sqlrequest = str_replace("[0]", $idutilisateur,$this->UtilisateursUpdateSQLRequest);
 				$sqlrequest = str_replace("[1]", $nom,$sqlrequest);
 				$sqlrequest = str_replace("[2]", $extension,$sqlrequest);
@@ -65,26 +81,30 @@ class ShowUtilisateursForm {
 				$sqlrequest = str_replace("[5]", $sipsrv,$sqlrequest);
 				$sqlrequest = str_replace("[6]", $siplog,$sqlrequest);
 				$sqlrequest = str_replace("[7]", $sippass,$sqlrequest);
+        $sqlrequest = str_replace("[8]", $serial,$sqlrequest);
         $stmt = $this->pdo->prepare($sqlrequest);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
     // Création d'un utilisateur
-    function UtilisateursInsert($nom,$extension,$typeposte,$mac,$sipsrv,$siplog,$sippass,$idclient) {
+    function UtilisateursInsert($nom,$extension,$typeposte,$mac,$sn,$sipsrv,$siplog,$sippass,$idclient) {
 				$sqlrequest = str_replace("[0]", $nom,$this->UtilisateursInsertSQLRequest);
 				$sqlrequest = str_replace("[1]", $extension,$sqlrequest);
 				$sqlrequest = str_replace("[2]", $typeposte,$sqlrequest);
 				$sqlrequest = str_replace("[3]", $mac,$sqlrequest);
-				$sqlrequest = str_replace("[4]", $sipsrv,$sqlrequest);
-				$sqlrequest = str_replace("[5]", $siplog,$sqlrequest);
-				$sqlrequest = str_replace("[6]", $sippass,$sqlrequest);
-				$sqlrequest = str_replace("[7]", $idclient,$sqlrequest);
+        $sqlrequest = str_replace("[4]", $sn,$sqlrequest);
+				$sqlrequest = str_replace("[5]", $sipsrv,$sqlrequest);
+				$sqlrequest = str_replace("[6]", $siplog,$sqlrequest);
+				$sqlrequest = str_replace("[7]", $sippass,$sqlrequest);
+				$sqlrequest = str_replace("[8]", $idclient,$sqlrequest);
+
+        //echo $sqlrequest;
         $stmt = $this->pdo->prepare($sqlrequest);
         $stmt->execute();
         return $this->pdo->lastInsertId();
-    }
-    
+    }   
+     
     // Création d'un utilisateur
     function UtilisateursDelete($idutilisateur) {
 				$sqlrequest = str_replace("[0]", $idutilisateur,$this->UtilisateursDeleteSQLRequest);

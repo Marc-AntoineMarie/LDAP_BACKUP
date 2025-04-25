@@ -12,14 +12,15 @@ if (!isset($pdo)) {
     //echo 'annuaire.php -> ok caca | ';
 }
 
-$idclient = $_POST['idclient'];
+$idclient = isset($_POST['idclient']) ? $_POST['idclient'] : (isset($_GET['idclient']) ? $_GET['idclient'] : null);
+
 $client = $ClientsForm->ClientsRecoveryById($idclient)[0];
 
 //echo $_POST['EditSIPServeur']."//".$_POST['EditSIPLogin']."//".$_POST['EditSIPPassword']."<BR>";
 	
 
 $majdatabase = 0;
-$idutilisateur = $_POST['idutilisateur'];
+$idutilisateur = isset($_POST['idutilisateur']) ? $_POST['idutilisateur'] : (isset($_GET['idutilisateur']) ? $_GET['idutilisateur'] : null);
 
 if (ISSET($_POST['Enregistrer'])) $majdatabase = 1;
 
@@ -95,7 +96,7 @@ if ($majdatabase == 1)
 	//echo $dataprov["ServeurSIP"]."//".$dataprov["LoginSIP"]."//".$dataprov["PasswordSIP"];
 	
 	$UtilisateursForm->UtilisateursUpdate($_POST['idutilisateur'],$_POST['EditNom'],$_POST['EditExtension'],$_POST['EditTypePoste'],
-		$_POST['EditMAC'],$_POST['EditSIPServeur'],$_POST['EditSIPLogin'],$_POST['EditSIPPassword']);
+		strtolower($_POST['EditMAC']),$_POST['EditSIPServeur'],$_POST['EditSIPLogin'],$_POST['EditSIPPassword'],$_POST['EditSN']);
 	
 	$utilisateurBLF = $UtilisateursForm->UtilisateursBLFRecoveryByUtilisateur($_POST['idutilisateur']);
 	$posblf = 0;
@@ -129,6 +130,8 @@ if ($majdatabase == 1)
 	}else{
 		//Vérification de l'adresse MAC si l'on est pas sur un poste qui accepte plusieurs utilisateurs
 		
+		$mactemp = strtolower($_POST['EditMAC']);
+
 		$verifmulti = 1;
 		switch ($typetel["PosteCategorie"])
 		{
@@ -137,7 +140,7 @@ if ($majdatabase == 1)
 				break;                			
 		}
 		
-		$verif = $UtilisateursForm->UtilisateursVerificationMAC($_POST['EditMAC'], $_POST['idutilisateur']);
+		$verif = $UtilisateursForm->UtilisateursVerificationMAC($mactemp, $_POST['idutilisateur']);
 		
 		//On vérifie que l'adresse MAC ne soit pas attribuée ailleurs
 		if ((ISSET($verif[0]))&&($verifmulti == 1))
@@ -146,7 +149,7 @@ if ($majdatabase == 1)
 			$clientnom = $ClientsForm->ClientsRecoveryById($verif[0]['clients_idclients'])[0]['Nom'];
 			echo "Impossible de générer le fichier de provisionning, cette adresse MAC est attribuée à $util ($clientnom).";
 		}else{
-			$Provisionning->GenerateProvisionningFiles($typetel["PosteCategorie"], $_POST['EditMAC'],$dataprov,$datablf,$UtilisateursForm);		
+			$Provisionning->GenerateProvisionningFiles($typetel["PosteCategorie"], $mactemp,$dataprov,$datablf,$UtilisateursForm);		
 		}
 	}
 	
@@ -160,7 +163,7 @@ if (ISSET($_POST['NewUserValidation']))
 {
 	//Création d'un nouvel utilisateur
 	$idutilisateur = $UtilisateursForm->UtilisateursInsert($_POST['EditNom'],$_POST['EditExtension'],$_POST['EditTypePoste'],
-		$_POST['EditMAC'],$_POST['EditSIPServeur'],$_POST['EditSIPLogin'],$_POST['EditSIPPassword'],$idclient);
+	strtolower($_POST['EditMAC']),$_POST['EditSN'],$_POST['EditSIPServeur'],$_POST['EditSIPLogin'],$_POST['EditSIPPassword'],$idclient);
 }
 
 
@@ -231,9 +234,10 @@ if (ISSET($_POST['NewUserValidation']))
                 		if ($utilisateur['AdresseMAC'] != "") echo "<td>MAC :<BR><input type='text' name='EditMAC' value=\"$utilisateur[AdresseMAC]\"></td>";
                 		else echo "<td>MAC :<BR><input type='text' name='EditMAC' value=\"\"></td>";
                 	
-                		echo "<td></td>";
+
+						if ($utilisateur['SerialNumber'] != "") echo "<td>N° série :<BR><input type='text' name='EditSN' value=\"$utilisateur[SerialNumber]\"></td>";
+                		else echo "<td>N° série :<BR><input type='text' name='EditSN' value=\"\"></td>";
                 		echo "</tr>";
-                		
                 		
                 		echo "<tr>";
                     

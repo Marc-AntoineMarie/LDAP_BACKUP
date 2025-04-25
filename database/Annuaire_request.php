@@ -12,35 +12,85 @@ class AnnuaireManager {
 // Récupération des entrées de l'annuaire pour un client spécifique
     function getAnnuaireByClient($clientId) {
         try {
-            $sql = "SELECT * FROM Annuaires WHERE clients_idclients = :clientId";
+            $sql = "SELECT ua.idUserAnnuaire as iduser_annuaire, ua.Prenom, ua.Nom, 
+                           ua.Email, ua.Societe, ua.Adresse, ua.Ville, 
+                           ua.Telephone, ua.Commentaire
+                    FROM User_annuaire ua
+                    INNER JOIN Annuaires a ON ua.annuaire_id = a.idAnnuaires
+                    WHERE a.clients_idclients = :clientId
+                    ORDER BY ua.Nom, ua.Prenom";
             $stmt = $this->pdo->prepare($sql);
             $stmt->bindParam(":clientId", $clientId, PDO::PARAM_INT);
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
-            die("getAnnuaireByCLient -> Erreur lors de la récupération des données |  : " . $e->getMessage());
+            throw new Exception("Erreur lors de la récupération des contacts : " . $e->getMessage());
         }
     }
 
-    function addEntry($clientId, $nom, $adresse, $telephone, $email) {
-        $sql = "INSERT INTO Annuaires (clients_idclients, Nom, Adresse, Telephone, Email) 
-                VALUES (:clientId, :nom, :adresse, :telephone, :email)";
+    function addEntry($clientId, $prenom, $nom, $email, $societe, $adresse, $ville, $telephone, $commentaire = '') {
+        try {
+            // D'abord, récupérer l'ID de l'annuaire existant du client
+            $sqlGetAnnuaire = "SELECT idAnnuaires FROM Annuaires WHERE clients_idclients = :clientId LIMIT 1";
+            $stmtGetAnnuaire = $this->pdo->prepare($sqlGetAnnuaire);
+            $stmtGetAnnuaire->bindParam(":clientId", $clientId, PDO::PARAM_INT);
+            $stmtGetAnnuaire->execute();
+            
+            $annuaire = $stmtGetAnnuaire->fetch(PDO::FETCH_ASSOC);
+            $annuaireId = $annuaire ? $annuaire['idAnnuaires'] : null;
+            
+            // Si aucun annuaire n'existe, en créer un nouveau
+            if (!$annuaireId) {
+                $sqlAnnuaire = "INSERT INTO Annuaires (clients_idclients, Nom) VALUES (:clientId, 'Annuaire')";
+                $stmtAnnuaire = $this->pdo->prepare($sqlAnnuaire);
+                $stmtAnnuaire->bindParam(":clientId", $clientId, PDO::PARAM_INT);
+                $stmtAnnuaire->execute();
+                $annuaireId = $this->pdo->lastInsertId();
+            }
+            
+            // Créer l'entrée utilisateur dans User_annuaire
+            $sqlUser = "INSERT INTO User_annuaire (annuaire_id, Prenom, Nom, Email, Societe, Adresse, Ville, Telephone, Commentaire) 
+                       VALUES (:annuaireId, :prenom, :nom, :email, :societe, :adresse, :ville, :telephone, :commentaire)";
 
-        $stmt = $this->pdo->prepare($sql);
-
-        $stmt->bindParam(":clientId", $clientId, PDO::PARAM_INT);
-        $stmt->bindParam(":nom", $nom, PDO::PARAM_STR);
-        $stmt->bindParam(":adresse", $adresse, PDO::PARAM_STR);
-        $stmt->bindParam(":telephone", $telephone, PDO::PARAM_STR);
-        $stmt->bindParam(":email", $email, PDO::PARAM_STR);
-        return $stmt->execute();
+            $stmtUser = $this->pdo->prepare($sqlUser);
+            $stmtUser->bindParam(":annuaireId", $annuaireId, PDO::PARAM_INT);
+            $stmtUser->bindParam(":prenom", $prenom, PDO::PARAM_STR);
+            $stmtUser->bindParam(":nom", $nom, PDO::PARAM_STR);
+            $stmtUser->bindParam(":email", $email, PDO::PARAM_STR);
+            $stmtUser->bindParam(":societe", $societe, PDO::PARAM_STR);
+            $stmtUser->bindParam(":adresse", $adresse, PDO::PARAM_STR);
+            $stmtUser->bindParam(":ville", $ville, PDO::PARAM_STR);
+            $stmtUser->bindParam(":telephone", $telephone, PDO::PARAM_STR);
+            $stmtUser->bindParam(":commentaire", $commentaire, PDO::PARAM_STR);
+            
+            return $stmtUser->execute();
+        } catch (PDOException $e) {
+            throw new Exception("Erreur lors de l'ajout du contact : " . $e->getMessage());
+        }
     }
 
     function deleteEntry($entryId) {
-        $sql = "DELETE FROM Annuaires WHERE idAnnuaire = :entryId";
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->bindParam(":entryId", $entryId, PDO::PARAM_INT);
-        return $stmt->execute();
+        try {
+            $this->pdo->beginTransaction();
+            
+            // First delete from User_annuaire
+            $sqlUser = "DELETE FROM User_annuaire WHERE annuaire_id = :entryId";
+            $stmtUser = $this->pdo->prepare($sqlUser);
+            $stmtUser->bindParam(":entryId", $entryId, PDO::PARAM_INT);
+            $stmtUser->execute();
+            
+            // Then delete from Annuaires
+            $sqlAnnuaire = "DELETE FROM Annuaires WHERE idAnnuaires = :entryId";
+            $stmtAnnuaire = $this->pdo->prepare($sqlAnnuaire);
+            $stmtAnnuaire->bindParam(":entryId", $entryId, PDO::PARAM_INT);
+            $stmtAnnuaire->execute();
+            
+            $this->pdo->commit();
+            return true;
+        } catch (PDOException $e) {
+            $this->pdo->rollBack();
+            die("deleteEntry -> Erreur lors de la suppression des données : " . $e->getMessage());
+        }
     }
 
     function getClientName($clientId) {
@@ -56,6 +106,148 @@ class AnnuaireManager {
 
     }
     
+    function addEntryWithPrenom($clientId, $nom, $prenom, $email, $societe = '', $adresse = '', $telephone = '') {
+        try {
+            $sql = "INSERT INTO Annuaires (clients_idclients, Nom, Prenom, Email, Societe, Adresse, Telephone) 
+                    VALUES (:clientId, :nom, :prenom, :email, :societe, :adresse, :telephone)";
+            
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindParam(":clientId", $clientId, PDO::PARAM_INT);
+            $stmt->bindParam(":nom", $nom, PDO::PARAM_STR);
+            $stmt->bindParam(":prenom", $prenom, PDO::PARAM_STR);
+            $stmt->bindParam(":email", $email, PDO::PARAM_STR);
+            $stmt->bindParam(":societe", $societe, PDO::PARAM_STR);
+            $stmt->bindParam(":adresse", $adresse, PDO::PARAM_STR);
+            $stmt->bindParam(":telephone", $telephone, PDO::PARAM_STR);
+            
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            die("Erreur lors de l'ajout : " . $e->getMessage());
+        }
+    }
+
+    function updateEntry($entryId, $nom, $prenom, $email, $societe = '', $adresse = '', $telephone = '') {
+        try {
+            $sql = "UPDATE Annuaires SET 
+                    Nom = :nom,
+                    Prenom = :prenom,
+                    Email = :email,
+                    Societe = :societe,
+                    Adresse = :adresse,
+                    Telephone = :telephone
+                    WHERE idAnnuaire = :entryId";
+            
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindParam(":entryId", $entryId, PDO::PARAM_INT);
+            $stmt->bindParam(":nom", $nom, PDO::PARAM_STR);
+            $stmt->bindParam(":prenom", $prenom, PDO::PARAM_STR);
+            $stmt->bindParam(":email", $email, PDO::PARAM_STR);
+            $stmt->bindParam(":societe", $societe, PDO::PARAM_STR);
+            $stmt->bindParam(":adresse", $adresse, PDO::PARAM_STR);
+            $stmt->bindParam(":telephone", $telephone, PDO::PARAM_STR);
+            
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            die("Erreur lors de la mise à jour : " . $e->getMessage());
+        }
+    }
+
+    function getEntry($entryId) {
+        try {
+            $sql = "SELECT * FROM Annuaires WHERE idAnnuaire = :entryId";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindParam(":entryId", $entryId, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            die("Erreur lors de la récupération de l'entrée : " . $e->getMessage());
+        }
+    }
+
+    function getContact($contactId) {
+        try {
+            $sql = "SELECT ua.idUserAnnuaire as idAnnuaire, ua.Prenom, ua.Nom, 
+                           ua.Email, ua.Societe, ua.Adresse, ua.Ville, 
+                           ua.Telephone, ua.Commentaire
+                    FROM User_annuaire ua
+                    WHERE ua.idUserAnnuaire = :contactId";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindParam(":contactId", $contactId, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            throw new Exception("Erreur lors de la récupération du contact : " . $e->getMessage());
+        }
+    }
+
+    function updateContact($contactId, $prenom, $nom, $email, $societe, $adresse, $ville, $telephone, $commentaire) {
+        try {
+            $sql = "UPDATE User_annuaire 
+                   SET Prenom = :prenom,
+                       Nom = :nom,
+                       Email = :email,
+                       Societe = :societe,
+                       Adresse = :adresse,
+                       Ville = :ville,
+                       Telephone = :telephone,
+                       Commentaire = :commentaire
+                   WHERE idUserAnnuaire = :contactId";
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindParam(":contactId", $contactId, PDO::PARAM_INT);
+            $stmt->bindParam(":prenom", $prenom, PDO::PARAM_STR);
+            $stmt->bindParam(":nom", $nom, PDO::PARAM_STR);
+            $stmt->bindParam(":email", $email, PDO::PARAM_STR);
+            $stmt->bindParam(":societe", $societe, PDO::PARAM_STR);
+            $stmt->bindParam(":adresse", $adresse, PDO::PARAM_STR);
+            $stmt->bindParam(":ville", $ville, PDO::PARAM_STR);
+            $stmt->bindParam(":telephone", $telephone, PDO::PARAM_STR);
+            $stmt->bindParam(":commentaire", $commentaire, PDO::PARAM_STR);
+            
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            throw new Exception("Erreur lors de la modification du contact : " . $e->getMessage());
+        }
+    }
+
+    function deleteContact($contactId) {
+        try {
+            $sql = "DELETE FROM User_annuaire WHERE idUserAnnuaire = :contactId";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindParam(":contactId", $contactId, PDO::PARAM_INT);
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            throw new Exception("Erreur lors de la suppression du contact : " . $e->getMessage());
+        }
+    }
+
+    // Compter le nombre total de contacts pour un client
+    function countAnnuaireByClient($clientId) {
+        try {
+            $sql = "SELECT COUNT(*) FROM User_annuaire ua INNER JOIN Annuaires a ON ua.annuaire_id = a.idAnnuaires WHERE a.clients_idclients = :clientId";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindParam(":clientId", $clientId, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchColumn();
+        } catch (PDOException $e) {
+            throw new Exception("Erreur lors du comptage des contacts : " . $e->getMessage());
+        }
+    }
+
+    // Récupérer les contacts paginés pour un client
+    function getAnnuaireByClientPaginated($clientId, $offset, $perPage) {
+        try {
+            $sql = "SELECT ua.idUserAnnuaire as iduser_annuaire, ua.Prenom, ua.Nom, ua.Email, ua.Societe, ua.Adresse, ua.Ville, ua.Telephone, ua.Commentaire FROM User_annuaire ua INNER JOIN Annuaires a ON ua.annuaire_id = a.idAnnuaires WHERE a.clients_idclients = :clientId ORDER BY ua.Nom, ua.Prenom LIMIT :perPage OFFSET :offset";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindParam(":clientId", $clientId, PDO::PARAM_INT);
+            $stmt->bindParam(":perPage", $perPage, PDO::PARAM_INT);
+            $stmt->bindParam(":offset", $offset, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            throw new Exception("Erreur lors de la récupération paginée des contacts : " . $e->getMessage());
+        }
+    }
 
 ////////////////////////////////////////////////////
 /////////// Gestion des fichier CSV ////////////////
@@ -82,7 +274,7 @@ class AnnuaireManager {
 
 
     function exportAnnuaireToCSV($clientId, $filePath) {
-        $sql = "SELECT Nom, Adresse, Telephone, Email FROM Annuaire WHERE clients_idclients = :clientId";
+        $sql = "SELECT Nom, Adresse, Telephone, Email FROM Annuaires WHERE clients_idclients = :clientId";
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindParam(":clientId", $clientId, PDO::PARAM_INT);
         $stmt->execute();
@@ -148,4 +340,3 @@ class UserAnnuaireManager {
 }
 
 $annuaireManager = new AnnuaireManager($pdo);
-$contacts = $annuaireManager->getAnnuaireByClient($clientsId);

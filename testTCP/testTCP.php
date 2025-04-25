@@ -44,12 +44,49 @@
             // accept the client, and add him to the $clients array
             $clients[] = $newsock = socket_accept($sock);
             
+			//------------ Envoi GetParameters ------------------
+			
+			$body = "<soap:Envelope
+                xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"
+                xmlns:soap-enc=\"http://schemas.xmlsoap.org/soap/encoding/\"
+                xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"
+                xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"
+                xmlns:cwmp=\"urn:dslforum-org:cwmp-1-0\">
+                <soap:Header>
+                    <cwmp:ID soap:mustUnderstand=\"1\">0</cwmp:ID>
+                </soap:Header>
+                <soap:Body>";
+			$body .= "<cwmp:InformResponse>";
+			$body .= "</cwmp:InformResponse>";
+			$body .= " </soap:Body>
+					</soap:Envelope>";
+			
+			$header = "POST / HTTP/1.1\r\n
+				Host: 54.36.189.50:8001\r\n
+				User-Agent: ACS GC\r\n
+				Content-Type: text/xml; charset=utf-8\r\n
+				SOAPAction: cwmp:InformResponse\r\n	
+				Content-Length: ".strlen($body)."\r\n
+				\r\n";
+				
+			$txt = $body.$header;
+			
+					
+					
+			/*
+			
+				$txt .= "<cwmp:GetParameterNames>";
+			$txt .= "<ParameterPath>InternetGatewayDevice.DeviceInfo.MACAddress</ParameterPath>";
+			$txt .= "<NextLevel>false</NextLevel>";
+			$txt .= "</cwmp:GetParameterNames>";
+			
+			*/
+
             // send the client a welcome message
-            socket_write($newsock, "no noobs, but ill make an exception :)\n".
-            "There are ".(count($clients) - 1)." client(s) connected to the server\n");
+            socket_write($newsock, $txt, strlen($txt));
             
             socket_getpeername($newsock, $ip);
-            echo "New client connected: {$ip}\n";
+            echo "New client connected: {$ip}<BR>";
             
             // remove the listening socket from the clients-with-data array
             $key = array_search($sock, $read);
@@ -61,14 +98,18 @@
 		{
             // read until newline or 1024 bytes
             // socket_read while show errors when the client is disconnected, so silence the error messages
-            $data = @socket_read($read_sock, 1024, PHP_NORMAL_READ);
+            $data = socket_read($read_sock, 1024, PHP_NORMAL_READ);
+			
+			echo date("Y-m-d H:i:s")." : $data<BR>";
+			
             
             // check if the client is disconnected
-            if ($data === false) {
+            if ($data === false) 
+			{
                 // remove client for $clients array
                 $key = array_search($read_sock, $clients);
                 unset($clients[$key]);
-                echo "client disconnected.\n";
+                echo "client disconnected.<BR>";
                 // continue to the next client to read from, if any
                 continue;
             }
@@ -79,16 +120,16 @@
             // check if there is any data after trimming off the spaces
             if (!empty($data)) 
 			{
-            
                 // send this to all the clients in the $clients array (except the first one, which is a listening socket)
-                foreach ($clients as $send_sock) {
-                
+                foreach ($clients as $send_sock) 
+				{
+					
                     // if its the listening sock or the client that we got the message from, go to the next one in the list
                     if ($send_sock == $sock || $send_sock == $read_sock)
                         continue;
-                    
+					
                     // write the message to the client -- add a newline character to the end of the message
-                    socket_write($send_sock, $data."\n");
+                    socket_write($send_sock, "TEST !!!!\n");
                     
                 } // end of broadcast foreach
                 
@@ -103,37 +144,4 @@
     // close the listening socket
     socket_close($sock);
 	
-	
-	/*require_once("SocketServer.class.php"); // Include the File
-	$server = new SocketServer("54.36.189.50",8001);//("54.36.189.50",8001); // Create a Server binding to the given ip address and listen to port 31337 for connections
-	$server->max_clients = 10; // Allow no more than 10 people to connect at a time
-	$server->hook("CONNECT","handle_connect"); // Run handle_connect every time someone connects
-	$server->hook("INPUT","handle_input"); // Run handle_input whenever text is sent to the server
-	$server->infinite_loop(); // Run Server Code Until Process is terminated.
-
-
-	function handle_connect(&$server,&$client,$input) 
-	{
-		SocketServer::socket_write_smart($client->socket,"String? ","");
-	}
-
-
-	function handle_input(&$server,&$client,$input) 
-	{
-		// You probably want to sanitize your inputs here
-		$trim = trim($input); // Trim the input, Remove Line Endings and Extra Whitespace.
-
-		if(strtolower($trim) == "quit") // User Wants to quit the server
-		{
-			SocketServer::socket_write_smart($client->socket,"Oh... Goodbye..."); // Give the user a sad goodbye message, meany!
-			$server->disconnect($client->server_clients_index); // Disconnect this client.
-			return; // Ends the function
-		}
-
-		$output = strrev($trim); // Reverse the String
-
-		SocketServer::socket_write_smart($client->socket,$output); // Send the Client back the String
-		SocketServer::socket_write_smart($client->socket,"String? ",""); // Request Another String
-	}*/
-		
 ?>

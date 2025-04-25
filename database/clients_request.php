@@ -1,6 +1,18 @@
 <?php
 
-//Gestion de l'affichage des clients
+/**
+ * Gestion de l'affichage des clients
+ * 
+ * Cette classe contient toutes les fonctions de :
+ * - Récupération des informations clients
+ * - Gestion des relations client-partenaire
+ * - Filtrage et validation des données
+ * 
+ * Points importants :
+ * - Utilisation de requêtes préparées pour la sécurité
+ * - Gestion des droits d'accès par partenaire
+ * - Validation des données entrantes
+ */
 class ShowClientForm {
 
     private $pdo; 
@@ -11,12 +23,24 @@ class ShowClientForm {
     		Adresse = \"[4]\", Plateforme = \"[5]\", PlateformeURL = \"[6]\" WHERE idclients = [0] ";
     private $PlateformeRecoverySQLRequest = "SELECT * FROM Plateformes ORDER BY PlateformeNom ASC ";
 
-    //Constructeur pour initialiser la connexion PDO
+    /**
+     * Constructeur pour initialiser la connexion PDO
+     * 
+     * @param PDO $pdo Objet PDO de connexion à la base
+     */
     function __construct($pdo) {
         $this->pdo = $pdo; 
     }
 
-    //Récupération de tous les clients
+    /**
+     * Récupération de tous les clients
+     * 
+     * @return array Liste des clients
+     * 
+     * Cette fonction :
+     * - Exécute la requête de récupération des clients
+     * - Retourne les résultats sous forme de tableau associatif
+     */
     function ClientsRecovery(){
 
         $stmt = $this->pdo->prepare($this->ClientsRecoverySQLRequest);
@@ -24,7 +48,17 @@ class ShowClientForm {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
-    // Récupération des clients d'un partenaire
+    /**
+     * Récupération des clients d'un partenaire
+     * 
+     * @param int $idpartenaire ID du partenaire
+     * @return array Liste des clients associés au partenaire
+     * 
+     * Cette fonction :
+     * - Filtre les clients par partenaire
+     * - Vérifie les droits d'accès
+     * - Retourne les informations nécessaires
+     */
     function ClientsRecoveryByPartenaire($idpartenaire) {
 				$sqlrequest = str_replace("[0]", $idpartenaire,$this->ClientsRecoveryByPartenaireSQLRequest);
         $stmt = $this->pdo->prepare($sqlrequest);
@@ -32,7 +66,17 @@ class ShowClientForm {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
-     // Récupération d'un client par son id
+     /**
+      * Récupération d'un client par son id
+      * 
+      * @param int $idclient ID du client
+      * @return array|false Informations détaillées du client
+      * 
+      * Cette fonction :
+      * - Vérifie l'existence du client
+      * - Récupère toutes les informations associées
+      * - Gère les erreurs de requête
+      */
     function ClientsRecoveryById($idclient) {
 				$sqlrequest = str_replace("[0]", $idclient,$this->ClientsRecoveryByIdRequest);
         $stmt = $this->pdo->prepare($sqlrequest);
@@ -40,7 +84,23 @@ class ShowClientForm {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
-    // Enregistrement des données d'un client
+    /**
+     * Enregistrement des données d'un client
+     * 
+     * @param int $idclient ID du client
+     * @param string $nom Nom du client
+     * @param string $email Email du client
+     * @param string $tel Téléphone du client
+     * @param string $adresse Adresse du client
+     * @param string $plateforme Plateforme du client
+     * @param string $plateformeurl URL de la plateforme du client
+     * @return array|false Informations détaillées du client
+     * 
+     * Cette fonction :
+     * - Valide les données entrantes
+     * - Met à jour l'enregistrement en base
+     * - Gère les relations avec le partenaire
+     */
     function ClientsUpdate($idclient,$nom="",$email="",$tel="",$adresse="",$plateforme="",$plateformeurl="") {
 				$sqlrequest = str_replace("[0]", $idclient,$this->ClientsUpdateRequest);
 				$sqlrequest = str_replace("[1]", $nom,$sqlrequest);
@@ -54,7 +114,15 @@ class ShowClientForm {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
-    //Récupération des plateformes possibles pour affichage
+    /**
+     * Récupération des plateformes possibles pour affichage
+     * 
+     * @return array Liste des plateformes
+     * 
+     * Cette fonction :
+     * - Exécute la requête de récupération des plateformes
+     * - Retourne les résultats sous forme de tableau associatif
+     */
     function PlateformeRecovery(){
 
         $stmt = $this->pdo->prepare($this->PlateformeRecoverySQLRequest);
@@ -62,7 +130,21 @@ class ShowClientForm {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    //Ajouter un client à partir d'un formulaire
+    /**
+     * Ajouter un client à partir d'un formulaire
+     * 
+     * @param string $nom Nom du client
+     * @param string $email Email du client
+     * @param string $telephone Téléphone du client
+     * @param string $adresse Adresse du client
+     * @param int $partenaires_idpartenaires ID du partenaire
+     * @return bool|string True si succès, message d'erreur sinon
+     * 
+     * Cette fonction :
+     * - Valide les données entrantes
+     * - Crée l'enregistrement en base
+     * - Gère les relations avec le partenaire
+     */
     function AddClientRecovery($nom, $email, $telephone, $adresse, $partenaires_idpartenaires) {
         //préparation de la requête SQL
         $sql_clients = "INSERT INTO Clients (Nom, Email, Telephone, Adresse, partenaires_idpartenaires)
@@ -91,7 +173,17 @@ class ShowClientForm {
         }
     }
 
-    //Traitement du formulaire d'ajout clients
+    /**
+     * Traitement du formulaire d'ajout clients
+     * 
+     * @param array $formData Données du formulaire
+     * @return bool|string True si succès, message d'erreur sinon
+     * 
+     * Cette fonction :
+     * - Valide les données entrantes
+     * - Appelle la fonction d'ajout de client
+     * - Gère les erreurs de requête
+     */
     function processClientsForm($formData) {
         //validation des données
         $nom = htmlspecialchars($formData['Nom']);
@@ -112,19 +204,87 @@ class ShowClientForm {
 // Instance de la class ShowClientForm
 $ClientsForm = new ShowClientForm($pdo);
 
-
-
-
-//gestion d'ajout des clients en lien avec addclients_form.php
-class ClientsHandler {
-
+/**
+ * Gestion des clients
+ * 
+ * Cette classe contient toutes les fonctions de :
+ * - Récupération des informations clients
+ * - Gestion des relations client-partenaire
+ * - Filtrage et validation des données
+ * 
+ * Points importants :
+ * - Utilisation de requêtes préparées pour la sécurité
+ * - Gestion des droits d'accès par partenaire
+ * - Validation des données entrantes
+ */
+class ClientManager {
     private $pdo;
 
+    /**
+     * Constructeur pour initialiser la connexion PDO
+     * 
+     * @param PDO $pdo Objet PDO de connexion à la base
+     */
     public function __construct($pdo) {
         $this->pdo = $pdo;
     }
 
-    // Récupérer tous les clients
+    /**
+     * Récupère un client par son ID
+     * 
+     * @param int $clientId ID du client
+     * @return array|false Informations détaillées du client
+     * 
+     * Cette fonction :
+     * - Vérifie l'existence du client
+     * - Récupère toutes les informations associées
+     * - Gère les erreurs de requête
+     */
+    public function getClientById($clientId) {
+        $sql = "SELECT * FROM Clients WHERE idclients = :clientId";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute(['clientId' => $clientId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+}
+
+$clientManager = new ClientManager($pdo);
+
+/**
+ * Gestion des clients
+ * 
+ * Cette classe contient toutes les fonctions de :
+ * - Récupération des informations clients
+ * - Gestion des relations client-partenaire
+ * - Filtrage et validation des données
+ * 
+ * Points importants :
+ * - Utilisation de requêtes préparées pour la sécurité
+ * - Gestion des droits d'accès par partenaire
+ * - Validation des données entrantes
+ */
+class ClientsHandler {
+
+    private $pdo;
+
+    /**
+     * Constructeur pour initialiser la connexion PDO
+     * 
+     * @param PDO $pdo Objet PDO de connexion à la base
+     */
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    /**
+     * Récupère tous les clients
+     * 
+     * @return array Liste des clients
+     * 
+     * Cette fonction :
+     * - Exécute la requête de récupération des clients
+     * - Retourne les résultats sous forme de tableau associatif
+     */
     public function getAllClients() {
         $sql = "SELECT * FROM Clients";
         $stmt = $this->pdo->prepare($sql);
@@ -132,7 +292,17 @@ class ClientsHandler {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // Récupérer les clients d'un partenaire spécifique
+    /**
+     * Récupère les clients d'un partenaire spécifique
+     * 
+     * @param int $partnerId ID du partenaire
+     * @return array Liste des clients associés au partenaire
+     * 
+     * Cette fonction :
+     * - Filtre les clients par partenaire
+     * - Vérifie les droits d'accès
+     * - Retourne les informations nécessaires
+     */
     public function getClientsByPartner($partnerId) {
         $sql = "SELECT * FROM Clients WHERE partenaires_idpartenaires = :partnerId";
         $stmt = $this->pdo->prepare($sql);
@@ -141,7 +311,23 @@ class ClientsHandler {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // Ajouter un client
+    /**
+     * Ajoute un client
+     * 
+     * @param string $nom Nom du client
+     * @param string $email Email du client
+     * @param string $telephone Téléphone du client
+     * @param string $adresse Adresse du client
+     * @param string $plateforme Plateforme du client
+     * @param string $plateformeURL URL de la plateforme du client
+     * @param int $partnerId ID du partenaire
+     * @return bool|string True si succès, message d'erreur sinon
+     * 
+     * Cette fonction :
+     * - Valide les données entrantes
+     * - Crée l'enregistrement en base
+     * - Gère les relations avec le partenaire
+     */
     public function addClient($nom, $email, $telephone, $adresse, $plateforme, $plateformeURL, $partnerId) {
         try {
             $sql = "INSERT INTO Clients (Nom, Email, Telephone, Adresse, Plateforme, PlateformeURL, partenaires_idpartenaires) 
@@ -161,7 +347,23 @@ class ClientsHandler {
         }
     }
 
-    // Mise à jour d'un client
+    /**
+     * Met à jour un client
+     * 
+     * @param int $clientId ID du client
+     * @param string $nom Nom du client
+     * @param string $email Email du client
+     * @param string $telephone Téléphone du client
+     * @param string $adresse Adresse du client
+     * @param string $plateforme Plateforme du client
+     * @param string $plateformeURL URL de la plateforme du client
+     * @return bool True si succès, false sinon
+     * 
+     * Cette fonction :
+     * - Valide les données entrantes
+     * - Met à jour l'enregistrement en base
+     * - Gère les relations avec le partenaire
+     */
     public function updateClient($clientId, $nom, $email, $telephone, $adresse, $plateforme, $plateformeURL) {
         $sql = "UPDATE Clients 
                 SET Nom = :nom, Email = :email, Telephone = :telephone, Adresse = :adresse, Plateforme = :plateforme, PlateformeURL = :plateformeURL 
@@ -178,7 +380,17 @@ class ClientsHandler {
         return true;
     }
 
-    // Récupération d'un client par ID
+    /**
+     * Récupère un client par ID
+     * 
+     * @param int $clientId ID du client
+     * @return array|false Informations détaillées du client
+     * 
+     * Cette fonction :
+     * - Vérifie l'existence du client
+     * - Récupère toutes les informations associées
+     * - Gère les erreurs de requête
+     */
     public function getClientById($clientId) {
         $sql = "SELECT * FROM Clients WHERE idclients = :clientId";
         $stmt = $this->pdo->prepare($sql);
@@ -187,7 +399,14 @@ class ClientsHandler {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    // Récupération des plateformes
+    /**
+     * Récupère les plateformes
+     * 
+     * @return array Liste des plateformes
+     * 
+     * Cette fonction :
+     * - Retourne les plateformes disponibles
+     */
     public function getPlatforms() {
         return [
             'Wazo' => [
@@ -202,7 +421,18 @@ class ClientsHandler {
         ];
     }
 
-    // Traitement du formulaire
+    /**
+     * Traitement du formulaire
+     * 
+     * @param array $formData Données du formulaire
+     * @param int $partnerId ID du partenaire
+     * @return bool|string True si succès, message d'erreur sinon
+     * 
+     * Cette fonction :
+     * - Valide les données entrantes
+     * - Appelle la fonction d'ajout de client
+     * - Gère les erreurs de requête
+     */
     public function processAddClientForm($formData, $partnerId) {
         $nom = trim($formData['Nom'] ?? '');
         $email = trim($formData['Email'] ?? '');
@@ -218,7 +448,17 @@ class ClientsHandler {
         return $this->addClient($nom, $email, $telephone, $adresse, $plateforme, $plateformeURL, $partnerId);
     }
 
-    //récupérer le nom du partenaire :)
+    /**
+     * Récupère le nom du partenaire
+     * 
+     * @param int $partnerId ID du partenaire
+     * @return string Nom du partenaire
+     * 
+     * Cette fonction :
+     * - Vérifie l'existence du partenaire
+     * - Récupère le nom du partenaire
+     * - Gère les erreurs de requête
+     */
     public function getPartnerNameById($partnerId) {
         $sql = "SELECT Nom FROM Partenaires WHERE idpartenaires = :id";
         $stmt = $this->pdo->prepare($sql);
@@ -227,7 +467,17 @@ class ClientsHandler {
         return $stmt->fetch(PDO::FETCH_ASSOC)['Nom'] ?? 'Inconnu';
     }
 
-    // Suppression d'un client par ID
+    /**
+     * Suppression d'un client par ID
+     * 
+     * @param int $clientId ID du client
+     * @return bool|string True si succès, message d'erreur sinon
+     * 
+     * Cette fonction :
+     * - Vérifie l'existence du client
+     * - Supprime l'enregistrement en base
+     * - Gère les erreurs de requête
+     */
     public function deleteClient($clientId) {
         try {
             // Vérification pour éviter la suppression d'un client non autorisé au cas où on donnerais un accès a un partenaire un jours. (comme ça c'est fais)

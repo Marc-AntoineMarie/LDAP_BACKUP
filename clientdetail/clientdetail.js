@@ -1,4 +1,10 @@
-/////////Bouton annuaire redirection/////////
+/////////////////////////////////////////////////////////
+// Gestion de la navigation vers l'annuaire
+// Ce code permet de :
+// - Rediriger vers la page annuaire.php avec l'ID du client
+// - Maintenir le contexte client lors de la navigation
+// - Gérer les erreurs si le bouton ou l'ID n'est pas trouvé
+/////////////////////////////////////////////////////////
 
 document.addEventListener("DOMContentLoaded", function () {
     const gererAnnuaireBtn = document.getElementById('gerer-annuaire');
@@ -14,7 +20,15 @@ document.addEventListener("DOMContentLoaded", function () {
     } else {
         console.error("Le bouton 'Gérer l'annuaire' est introuvable !");
     }
-});s
+});
+
+/////////////////////////////////////////////////////////
+// Gestion des clients
+// Cette section gère :
+// - L'ajout de nouveaux clients via un formulaire
+// - La suppression de clients existants
+// - La mise à jour de l'interface utilisateur
+/////////////////////////////////////////////////////////
 
 document.addEventListener("DOMContentLoaded", function() {
     // Fonction pour ajouter un client
@@ -134,4 +148,3 @@ document.getElementById('add-client').addEventListener('click', function () {
             .catch((error) => console.error('Erreur :', error));
     }
 });
-

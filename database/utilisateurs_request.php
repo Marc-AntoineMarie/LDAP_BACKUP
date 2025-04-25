@@ -22,7 +22,6 @@ class ShowUtilisateursForm {
     private $UtilisateursBLFDeleteAllSQLRequest = "DELETE FROM UtilisateursBLF WHERE utilisateurs_idutilisateurs = [0]";
 		private $UtilisateursDeleteSQLRequest = "DELETE FROM Utilisateurs WHERE idutilisateurs = [0]";
 
-
     //Constructeur pour initialiser la connexion PDO
     function __construct($pdo) {
         $this->pdo = $pdo;
@@ -170,6 +169,61 @@ class ShowUtilisateursForm {
         $stmt = $this->pdo->prepare($sqlrequest);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Compte le nombre total d'utilisateurs pour un client
+    function CountUtilisateursByClient($idclient) {
+        $sqlrequest = "SELECT COUNT(*) as total FROM Utilisateurs WHERE clients_idclients = ?";
+        $stmt = $this->pdo->prepare($sqlrequest);
+        $stmt->execute([$idclient]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return (int)$result['total'];
+    }
+
+    // Récupère les utilisateurs d'un client avec pagination
+    function UtilisateursRecoveryByClientPaginated($idclient, $order="", $offset=0, $limit=10) {
+        $sqlrequest = "SELECT * FROM Utilisateurs WHERE clients_idclients = ?";
+        if (!empty($order)) {
+            $sqlrequest .= " ORDER BY " . $order;
+        }
+        $sqlrequest .= " LIMIT ? OFFSET ?";
+        
+        $stmt = $this->pdo->prepare($sqlrequest);
+        $stmt->bindValue(1, $idclient, PDO::PARAM_INT);
+        $stmt->bindValue(2, (int)$limit, PDO::PARAM_INT);
+        $stmt->bindValue(3, (int)$offset, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Recherche des utilisateurs d'un client
+    public function SearchUtilisateursByClient($idclient, $query) {
+        try {
+            $sql = "SELECT * FROM Utilisateurs
+                    WHERE clients_idclients = :idclient
+                    AND (
+                        Nom LIKE :query1
+                        OR Extension LIKE :query2
+                        OR SIPLogin LIKE :query3
+                        OR TypePoste LIKE :query4
+                    )
+                    ORDER BY Nom ASC";
+            $searchQuery = '%' . $query . '%';
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->bindParam(':idclient', $idclient, PDO::PARAM_INT);
+            $stmt->bindParam(':query1', $searchQuery, PDO::PARAM_STR);
+            $stmt->bindParam(':query2', $searchQuery, PDO::PARAM_STR);
+            $stmt->bindParam(':query3', $searchQuery, PDO::PARAM_STR);
+            $stmt->bindParam(':query4', $searchQuery, PDO::PARAM_STR);
+            if (!$stmt->execute()) {
+                throw new Exception("Erreur lors de l'exécution de la requête: " . implode(", ", $stmt->errorInfo()));
+            }
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            error_log("Erreur dans SearchUtilisateursByClient: " . $e->getMessage());
+            throw $e;
+        }
     }
 
     /*//Ajouter un client à partir d'un formulaire
