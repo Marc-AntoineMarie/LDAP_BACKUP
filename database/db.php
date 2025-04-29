@@ -2,9 +2,9 @@
 try {
     // Établir la connexion avec la base de données
     $host = 'localhost';
-    $db   = 'LDAP';
-    $user = 'gcadmin';
-    $pass = 'Y7x49spyK5MF';
+    $db   = '****';
+    $user = '****';
+    $pass = '**************';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
